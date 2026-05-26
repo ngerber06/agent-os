@@ -1,0 +1,13 @@
+[project]
+name = "agentos-runner"
+version = "0.1.0"
+description = "Agent OS — Agent process lifecycle manager"
+requires-python = ">=3.11"
+dependencies = [
+    "httpx>=0.27.0",
+    "websockets>=12.0",
+]
+
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"

@@ -1,0 +1,69 @@
+# Traefik config for agent-os.nathangerber.tech
+# Place in /etc/traefik/ on the VPS or mount as volume
+
+entryPoints:
+  web:
+    address: ":80"
+  websecure:
+    address: ":443"
+
+providers:
+  docker:
+    endpoint: "unix:///var/run/docker.sock"
+    exposedByDefault: false
+
+certificatesResolvers:
+  letsencrypt:
+    acme:
+      email: nathangerber@protonmail.com
+      storage: /etc/traefik/acme.json
+      httpChallenge:
+        entryPoint: web
+
+http:
+  routers:
+    agentos-api:
+      rule: "Host(`agent-os.nathangerber.tech`) && PathPrefix(`/api/`)"
+      entryPoints:
+        - websecure
+      service: agentos-api
+      tls:
+        certResolver: letsencrypt
+      middlewares:
+        - cors
+
+    agentos-ws:
+      rule: "Host(`agent-os.nathangerber.tech`) && PathPrefix(`/ws/`)"
+      entryPoints:
+        - websecure
+      service: agentos-api
+      tls:
+        certResolver: letsencrypt
+
+    agentos-frontend:
+      rule: "Host(`agent-os.nathangerber.tech`)"
+      entryPoints:
+        - websecure
+      service: agentos-frontend
+      tls:
+        certResolver: letsencrypt
+
+  services:
+    agentos-api:
+      loadBalancer:
+        servers:
+          - url: "http://api:8001"
+
+    agentos-frontend:
+      loadBalancer:
+        servers:
+          - url: "http://frontend:5173"
+
+  middlewares:
+    cors:
+      headers:
+        accessControlAllowOriginList:
+          - "https://agent-os.nathangerber.tech"
+        accessControlAllowMethods: "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+        accessControlAllowHeaders: "Authorization, Content-Type, X-API-Key"
+        accessControlAllowCredentials: true

@@ -1,0 +1,71 @@
+version: "3.9"
+
+services:
+  api:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    ports:
+      - "8001:8001"
+    env_file: .env
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://agentos:agentos@postgres:5432/agentos
+      - ENVIRONMENT=production
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - agentos-net
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: agentos
+      POSTGRES_PASSWORD: agentos
+      POSTGRES_DB: agentos
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U agentos"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - agentos-net
+    restart: unless-stopped
+
+  runner:
+    build:
+      context: ./runner
+      dockerfile: Dockerfile
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ~/.config/hermes:/root/.config/hermes:ro
+    env_file: .env
+    depends_on:
+      - api
+    networks:
+      - agentos-net
+    restart: unless-stopped
+
+  monitor:
+    build:
+      context: ./monitor
+      dockerfile: Dockerfile
+    privileged: true
+    env_file: .env
+    environment:
+      - MONITOR_API_URL=http://api:8001
+    depends_on:
+      - api
+    networks:
+      - agentos-net
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+
+networks:
+  agentos-net:
+    driver: bridge

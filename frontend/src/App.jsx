@@ -6,6 +6,7 @@ import { TweaksPanel, TweakSection, TweakColor, TweakRadio } from './components/
 import ChatDrawer from './components/ChatDrawer';
 import NotificationPopover from './components/NotificationPopover';
 import SettingsModal from './components/SettingsModal';
+import AgentCreatorModal from './components/AgentCreatorModal';
 import { ActivityView, AgentsView, VPSView, fmtK } from './pages/views-main';
 import { ProjectsView, SpendView, BrainView } from './pages/views-aux';
 
@@ -34,6 +35,7 @@ export default function App() {
   const [unreadCount, setUnreadCount] = useState(3);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showAgentCreator, setShowAgentCreator] = useState(false);
 
   const [agents, setAgents] = useState(AGENTS);
   const [activities, setActivities] = useState(ACTIVITY);
@@ -52,25 +54,29 @@ export default function App() {
     fetch("/api/agents")
       .then(res => res.json())
       .then(dbList => {
-        if (dbList && dbList.length > 0) {
-          setAgents(prev => prev.map(localAgent => {
-            const dbAgent = dbList.find(da => 
-              da.agent_type?.toLowerCase() === localAgent.id.toLowerCase() ||
-              da.name.toLowerCase() === localAgent.name.toLowerCase()
-            );
-            if (dbAgent) {
-              return {
-                ...localAgent,
-                dbId: dbAgent.id,
-                status: dbAgent.status,
-                model: dbAgent.model,
-                name: dbAgent.name,
-                msgs: dbAgent.conv_count || localAgent.msgs
-              };
-            }
-            return localAgent;
-          }));
-        }
+        if (!Array.isArray(dbList)) return;
+        // Merge DB agents with local mock (for color/fallback display info)
+        const known = dbList.map(da => {
+          const local = AGENTS.find(a =>
+            a.id.toLowerCase() === da.agent_type?.toLowerCase() ||
+            a.name.toLowerCase() === da.name.toLowerCase()
+          ) || {};
+          return {
+            ...local,
+            id: da.agent_type?.toLowerCase() || da.name.toLowerCase(),
+            dbId: da.id,
+            name: da.name,
+            model: da.model,
+            status: da.status,
+            color: da.color || local.color || "#888",
+            system_prompt: da.system_prompt || null,
+            msgs: da.conv_count || local.msgs || 0,
+          };
+        });
+        // Keep mock agents that aren't in DB yet, plus all DB agents
+        const dbTypes = new Set(known.map(a => a.id));
+        const mockOnly = AGENTS.filter(a => !dbTypes.has(a.id));
+        setAgents([...known, ...mockOnly]);
       })
       .catch(() => console.log("Using mock agents."));
 
@@ -153,7 +159,7 @@ export default function App() {
 
   return (
     <div className="app" data-sidebar={sidebarMode} data-chat-pos={t.chatPos} data-chat-open={chatOpen ? "1" : "0"}>
-      <Sidebar view={view} onView={setView} onOpenChat={openChat} onOpenSettings={() => setShowSettings(true)} agents={agents} />
+      <Sidebar view={view} onView={setView} onOpenChat={openChat} onOpenSettings={() => setShowSettings(true)} onNewAgent={() => setShowAgentCreator(true)} agents={agents} />
       <div className="main">
         <Topbar 
           view={view} 
@@ -183,6 +189,24 @@ export default function App() {
           <ChatFab onClick={() => setChatOpen(true)} pos={t.chatPos} />
         )}
       </div>
+
+      <AgentCreatorModal
+        open={showAgentCreator}
+        onClose={() => setShowAgentCreator(false)}
+        onCreated={(newAgent) => {
+          const merged = {
+            id: newAgent.agent_type?.toLowerCase() || newAgent.name.toLowerCase(),
+            dbId: newAgent.id,
+            name: newAgent.name,
+            model: newAgent.model,
+            status: newAgent.status,
+            color: newAgent.color || "#888",
+            system_prompt: newAgent.system_prompt || null,
+            msgs: 0,
+          };
+          setAgents(prev => [...prev, merged]);
+        }}
+      />
 
       <TweaksPanel title="Tweaks">
         <TweakSection label="Theme" />
@@ -237,7 +261,7 @@ export default function App() {
 }
 
 // ─── Sidebar ───
-function Sidebar({ view, onView, onOpenChat, onOpenSettings, agents }) {
+function Sidebar({ view, onView, onOpenChat, onOpenSettings, onNewAgent, agents }) {
   const items = [
     { id: "activity", label: "Activity",  icon: Icon.activity, badge: "14" },
     { id: "agents",   label: "Agents",    icon: Icon.agents,   badge: agents.length },
@@ -273,7 +297,10 @@ function Sidebar({ view, onView, onOpenChat, onOpenSettings, agents }) {
 
       <div className="sb-section">
         <span>Agents</span>
-        <span className="ct">{agents.filter(a => a.status === "active").length}/{agents.length}</span>
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <span className="ct">{agents.filter(a => a.status === "active").length}/{agents.length}</span>
+          <button className="icon-btn" style={{ width: 18, height: 18 }} onClick={onNewAgent} title="New agent"><Icon.plus /></button>
+        </div>
       </div>
       <div className="sb-nav">
         {agents.map((a) => (

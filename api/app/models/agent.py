@@ -14,6 +14,8 @@ class Agent(Base):
     status: Mapped[str] = mapped_column(String(20), default="idle")
     agent_type: Mapped[str] = mapped_column(String(50), nullable=False)
     config_json: Mapped[str] = mapped_column(Text, nullable=True)
+    color: Mapped[str] = mapped_column(String(20), nullable=True)
+    system_prompt: Mapped[str] = mapped_column(Text, nullable=True)
     context_window_pct: Mapped[float] = mapped_column(Float, default=0.0)
     conv_count: Mapped[int] = mapped_column(Integer, default=0)
     last_active_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=True)

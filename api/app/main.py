@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
 from app.database import engine, Base
-from app.routers import agents, activity, metrics, tokens, projects, brain, auth, spend, chat
+from app.routers import agents, activity, metrics, tokens, projects, brain, auth, spend, chat, conversations
 from app.websocket import activity as ws_activity, metrics as ws_metrics, agent_logs as ws_logs
 
 
@@ -42,6 +42,7 @@ app.include_router(projects.router, prefix="/api/projects", tags=["projects"])
 app.include_router(brain.router, prefix="/api/brain", tags=["brain"])
 app.include_router(spend.router, prefix="/api/spend", tags=["spend"])
 app.include_router(chat.router, prefix="/api/chat", tags=["chat"])
+app.include_router(conversations.router, prefix="/api/conversations", tags=["conversations"])
 
 # WebSocket endpoints
 app.include_router(ws_activity.router)

@@ -8,6 +8,8 @@ class AgentCreate(BaseModel):
     initials: str
     model: str
     agent_type: str
+    color: Optional[str] = None
+    system_prompt: Optional[str] = None
     config_json: Optional[str] = None
 
 
@@ -15,6 +17,8 @@ class AgentUpdate(BaseModel):
     name: Optional[str] = None
     model: Optional[str] = None
     status: Optional[str] = None
+    color: Optional[str] = None
+    system_prompt: Optional[str] = None
     config_json: Optional[str] = None
     context_window_pct: Optional[float] = None
 

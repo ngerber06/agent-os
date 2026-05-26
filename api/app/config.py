@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     cors_origins: List[str] = ["http://localhost:5173", "http://localhost:3000"]
     hermes_api_url: str = ""
     hermes_api_key: str = ""
+    openrouter_api_key: str = ""
     environment: str = "development"
     log_level: str = "info"
 

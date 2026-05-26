@@ -133,45 +133,7 @@ export const PROJECTS = [
   { id: "p12",title: "Weekly retention.pdf gen", owner: "gemini", lane: "done",color: "#60a5fa", tags: ["data"],       updated: "5h"  },
 ];
 
-export const HISTORY = {
-  hermes: [
-    { id: "c1", project: "Hermes Multi-Agent",        title: "Agent pool initialization",                when: "now", t: "today" },
-    { id: "c2", project: "Hermes Multi-Agent",        title: "Subprocess stream piping",                 when: "2h",  t: "today" },
-    { id: "c3", project: "Cost guardrails",           title: "Cost budget thresholds design",            when: "5h",  t: "today" },
-    { id: "c4", project: "Multi-model orchestration", title: "Token count windowing strategy",          when: "1d",  t: "yest"  },
-  ],
-  claude: [
-    { id: "c10", project: "Agent-OS router v3",         title: "Middleware refactor",                      when: "now", t: "today" },
-    { id: "c11", project: "Agent-OS router v3",         title: "OTel span boundaries",                     when: "3h",  t: "today" },
-    { id: "c12", project: "Agent-OS router v3",         title: "Flaky test: AgentRunner.integration",      when: "1h",  t: "today" },
-    { id: "c13", project: "Test runner migration",      title: "Migrate jest → vitest",                    when: "1d",  t: "yest"  },
-    { id: "c14", project: "Test runner migration",      title: "Snapshot serializer for AgentState",       when: "2d",  t: "earlier" },
-    { id: "c15", project: "Deploy pipeline",            title: "Add OTel spans to agent transitions",      when: "4d",  t: "earlier" },
-  ],
-  codex: [
-    { id: "c20", project: "Mem0 → Obsidian sync",       title: "Local Obsidian REST syncing",              when: "8h",  t: "today" },
-    { id: "c21", project: "Mem0 → Obsidian sync",       title: "BGE-large embeddings local generation",     when: "1d",  t: "yest"  },
-    { id: "c22", project: "SSH probe replacement",      title: "SSH config key validation",                when: "2h",  t: "today" },
-    { id: "c23", project: "Vault graph weekly digest",  title: "Link weights algorithm optimization",      when: "5d",  t: "earlier" },
-  ],
-  gemini: [
-    { id: "c30", project: "Retention dashboard",        title: "Cohort SQL — weekly view",                  when: "1h",  t: "today" },
-    { id: "c31", project: "Retention dashboard",        title: "Pivot to 28-day rolling",                   when: "1d",  t: "yest"  },
-    { id: "c32", project: "Q2 brief validation",        title: "Gemini 1.5 Pro multimodal spec audit",     when: "3d",  t: "earlier" },
-    { id: "c33", project: "Weekly retention.pdf gen",   title: "Format PDF schema report",                 when: "1w",  t: "earlier" },
-  ],
-};
-
-export const THREAD = [
-  { role: "user", text: "Claude, check the status of unit tests on the FastAPI routing server. Have Codex monitor the logs." },
-  { role: "claude", tool: "runner.status · router-v3 (84% active)", ok: true,
-    text: "fastapi server integration tests are at 42/48. No errors so far. I will let you know when the build completes. Codex is listening on `/var/log/agent-os/runner.log`." },
-  { role: "user", text: "Excellent, keep me updated on the latency metrics." },
-  { role: "claude", tool: "metrics.query · 'latency' → 2 hits", ok: true,
-    text: "Blended latency on standard REST endpoints is 84ms. Websocket frame delivery is stable. Ready to merge to origin/main?",
-    code: "INFO:     127.0.0.1:41890 - \"GET /api/v1/agents/claude/metrics HTTP/1.1\" 200 OK (84ms)"
-  },
-];
+// Chat history and threads are now stored in the DB — no mock data here.
 
 export const SPEND = {
   monthToDate: 1006.8,
@@ -246,7 +208,7 @@ export const GRAPH = (() => {
 
 export const DATA = {
   AGENTS, VPS, CPU_SERIES, RAM_SERIES, NET_IN_SERIES, NET_OUT_SERIES,
-  ACTIVITY, PROJECTS, HISTORY, THREAD, SPEND, MEM0, VAULT_RECENT, GRAPH
+  ACTIVITY, PROJECTS, SPEND, MEM0, VAULT_RECENT, GRAPH
 };
 
 export const agentById = (id) => AGENTS.find((a) => a.id === id);

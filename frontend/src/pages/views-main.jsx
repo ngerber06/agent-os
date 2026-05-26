@@ -1,6 +1,7 @@
 import React from 'react';
 import { AGENTS, VPS, CPU_SERIES, RAM_SERIES, NET_IN_SERIES, NET_OUT_SERIES, ACTIVITY, SPEND, agentById } from '../api/data';
 import { Icon, Sparkline, LineChart, BarH, Donut, Gauge, LiveNumber, Clock } from '../components/Widgets';
+import { WS_BASE } from '../config';
 
 export function fmt$(v) { return "$" + v.toFixed(2); }
 export function fmtK(v) {
@@ -253,7 +254,7 @@ export function ActivityView({ hero, onOpenChat, activities, agents }) {
   const [netOutSeries, setNetOutSeries] = React.useState(NET_OUT_SERIES);
 
   React.useEffect(() => {
-    const ws = new WebSocket("ws://localhost:8001/ws/metrics");
+    const ws = new WebSocket(`${WS_BASE}/ws/metrics`);
     ws.onmessage = (event) => {
       try {
         const msg = JSON.parse(event.data);
@@ -345,7 +346,7 @@ export function AgentsView({ onOpenChat, agents, setAgents }) {
   const toggleAgentStatus = (agent) => {
     const action = agent.status === "active" ? "stop" : "start";
     if (agent.dbId) {
-      fetch(`http://localhost:8001/api/agents/${agent.dbId}/${action}`, {
+      fetch(`/api/agents/${agent.dbId}/${action}`, {
         method: "POST"
       })
         .then(res => res.json())
@@ -446,7 +447,7 @@ export function VPSView() {
 
   React.useEffect(() => {
     if (rebooting) return;
-    const ws = new WebSocket("ws://localhost:8001/ws/metrics");
+    const ws = new WebSocket(`${WS_BASE}/ws/metrics`);
     ws.onmessage = (event) => {
       try {
         const msg = JSON.parse(event.data);

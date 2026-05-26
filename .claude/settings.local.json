@@ -22,7 +22,12 @@
       "Bash(/root/agent-os/.venv/bin/pip install *)",
       "Bash(/root/agent-os/.venv/bin/pytest *)",
       "Bash(/root/agent-os/.venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8001)",
-      "Bash(curl *)"
+      "Bash(curl *)",
+      "Bash(docker network *)",
+      "Bash(xargs ls -la)",
+      "Bash(docker exec mem0-dev-postgres-1 *)",
+      "Bash(docker compose *)",
+      "Bash(docker exec agent-os-api-1 *)"
     ]
   }
 }

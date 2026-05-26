@@ -1,0 +1,58 @@
+version: "3.9"
+
+services:
+  api:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    ports:
+      - "8001:8001"
+    env_file: .env
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://agentos:agentos@mem0-dev-postgres-1:5432/agentos
+      - ENVIRONMENT=production
+      - CORS_ORIGINS=["https://agents.nathangerber.tech"]
+    networks:
+      - mem0-net
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "5173:80"
+    restart: unless-stopped
+
+  monitor:
+    build:
+      context: ./monitor
+      dockerfile: Dockerfile
+    privileged: true
+    env_file: .env
+    environment:
+      - MONITOR_API_URL=http://api:8001
+      - REGION=hermes-vps
+    depends_on:
+      - api
+    networks:
+      - mem0-net
+    restart: unless-stopped
+
+  runner:
+    build:
+      context: ./runner
+      dockerfile: Dockerfile
+    env_file: .env
+    environment:
+      - API_URL=http://api:8001
+    depends_on:
+      - api
+    networks:
+      - mem0-net
+    restart: unless-stopped
+
+networks:
+  mem0-net:
+    external: true
+    name: mem0-dev_mem0_network

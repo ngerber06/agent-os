@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { AGENTS, ACTIVITY } from './api/data';
+import { WS_BASE } from './config';
 import { Icon, LiveNumber, Clock } from './components/Widgets';
 import { TweaksPanel, TweakSection, TweakColor, TweakRadio } from './components/TweaksPanel';
 import ChatDrawer from './components/ChatDrawer';
@@ -48,7 +49,7 @@ export default function App() {
 
   useEffect(() => {
     // 1. Fetch live agents
-    fetch("http://localhost:8001/api/agents")
+    fetch("/api/agents")
       .then(res => res.json())
       .then(dbList => {
         if (dbList && dbList.length > 0) {
@@ -74,7 +75,7 @@ export default function App() {
       .catch(() => console.log("Using mock agents."));
 
     // 2. Fetch spend summary
-    fetch("http://localhost:8001/api/spend")
+    fetch("/api/spend")
       .then(res => res.json())
       .then(data => {
         if (data && data.mtd) {
@@ -84,7 +85,7 @@ export default function App() {
       .catch(() => {});
 
     // 3. Connect to WebSocket Activity
-    const ws = new WebSocket("ws://localhost:8001/ws/activity");
+    const ws = new WebSocket(`${WS_BASE}/ws/activity`);
     ws.onmessage = (event) => {
       try {
         const msg = JSON.parse(event.data);

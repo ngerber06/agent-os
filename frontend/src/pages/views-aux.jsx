@@ -75,7 +75,7 @@ export function ProjectsView({ onOpenChat, agents = AGENTS }) {
   };
 
   useEffect(() => {
-    fetch("http://localhost:8001/api/projects")
+    fetch("/api/projects")
       .then(res => {
         if (!res.ok) throw new Error("HTTP error " + res.status);
         return res.json();
@@ -111,7 +111,7 @@ export function ProjectsView({ onOpenChat, agents = AGENTS }) {
       status: statusVal
     };
 
-    fetch("http://localhost:8001/api/projects", {
+    fetch("/api/projects", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload)
@@ -161,7 +161,7 @@ export function ProjectsView({ onOpenChat, agents = AGENTS }) {
       status: statusVal
     };
 
-    fetch("http://localhost:8001/api/projects", {
+    fetch("/api/projects", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload)
@@ -210,7 +210,7 @@ export function ProjectsView({ onOpenChat, agents = AGENTS }) {
 
     if (typeof projectId === "number" || (currentProj.dbId && !isNaN(currentProj.dbId))) {
       const dbId = currentProj.dbId || projectId;
-      fetch(`http://localhost:8001/api/projects/${dbId}`, {
+      fetch(`/api/projects/${dbId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: statusVal })
@@ -252,7 +252,7 @@ export function ProjectsView({ onOpenChat, agents = AGENTS }) {
 
     if (typeof projectId === "number" || (currentProj.dbId && !isNaN(currentProj.dbId))) {
       const dbId = currentProj.dbId || projectId;
-      fetch(`http://localhost:8001/api/projects/${dbId}`, {
+      fetch(`/api/projects/${dbId}`, {
         method: "DELETE"
       })
         .then(res => {
@@ -591,7 +591,7 @@ export function SpendView({ agents = AGENTS, spendMTD }) {
     if (spendTab === "90d") days = 90;
     if (spendTab === "YTD") days = 365;
 
-    fetch(`http://localhost:8001/api/spend?days=${days}`)
+    fetch(`/api/spend?days=${days}`)
       .then(res => {
         if (!res.ok) throw new Error("HTTP error " + res.status);
         return res.json();
@@ -1025,7 +1025,7 @@ export function BrainView({ onOpenChat }) {
 
   const handleReindex = () => {
     setIndexing(true);
-    fetch("http://localhost:8001/api/brain/synchronize", {
+    fetch("/api/brain/synchronize", {
       method: "POST"
     })
       .then(res => {

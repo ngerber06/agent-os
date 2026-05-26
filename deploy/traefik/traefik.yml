@@ -1,5 +1,8 @@
-# Traefik config for agent-os.nathangerber.tech
-# Place in /etc/traefik/ on the VPS or mount as volume
+# Traefik config for agent-os.nathangerber.tech — hermes-vps version
+# NOTE: This VPS already has Traefik running at /root/infra/docker/traefik/
+# Do NOT deploy this file as a standalone Traefik.
+# Instead, add the routes below to the existing dynamic config:
+#   /root/infra/docker/traefik/dynamic/hermes-dashboard.yml
 
 entryPoints:
   web:

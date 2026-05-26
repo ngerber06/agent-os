@@ -13,7 +13,16 @@
       "Bash(git -C /home/nathangerber/projects/agentOS status)",
       "Bash(git -C /home/nathangerber/projects/agentOS diff --stat)",
       "Bash(git *)",
-      "Bash(.venv/bin/pytest *)"
+      "Bash(.venv/bin/pytest *)",
+      "Bash(pip list *)",
+      "Bash(python *)",
+      "Bash(pip3 list *)",
+      "Bash(pip3 install *)",
+      "Bash(python3 -m venv /root/agent-os/.venv)",
+      "Bash(/root/agent-os/.venv/bin/pip install *)",
+      "Bash(/root/agent-os/.venv/bin/pytest *)",
+      "Bash(/root/agent-os/.venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8001)",
+      "Bash(curl *)"
     ]
   }
 }

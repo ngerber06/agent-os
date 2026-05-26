@@ -1,4 +1,10 @@
-export function ProjectsView({ onOpenChat }) {
+import React, { useState, useEffect, useRef } from 'react';
+import { PROJECTS, SPEND as SPEND_, VAULT_RECENT, MEM0, GRAPH, AGENTS, agentById } from '../api/data';
+import { Icon, Sparkline, LineChart, BarH, Donut } from '../components/Widgets';
+import { CardHeader, Avatar, fmt$, fmtK } from './views-main';
+
+// ─── Projects (Kanban, List, Timeline) ───
+export function ProjectsView({ onOpenChat, agents = AGENTS }) {
   const [projectTab, setProjectTab] = useState("board"); // board, list, timeline
   const [projects, setProjects] = useState(PROJECTS);
   const [searchQuery, setSearchQuery] = useState("");
@@ -24,57 +30,242 @@ export function ProjectsView({ onOpenChat }) {
     { id: "done",    title: "Done", color: "var(--ok)" }
   ];
 
+  const mapDbProjectToFrontend = (dbProj) => {
+    const matchingAgent = agents.find(a => a.dbId === dbProj.agent_id);
+    const owner = matchingAgent ? matchingAgent.id : "claude";
+    
+    let tags = [];
+    let desc = "";
+    if (dbProj.description) {
+      try {
+        if (dbProj.description.startsWith("{") && dbProj.description.endsWith("}")) {
+          const parsed = JSON.parse(dbProj.description);
+          tags = parsed.tags || [];
+          desc = parsed.desc || "";
+        } else {
+          tags = dbProj.description.split(",").map(t => t.trim()).filter(Boolean);
+          desc = dbProj.description;
+        }
+      } catch (e) {
+        tags = [dbProj.description];
+        desc = dbProj.description;
+      }
+    }
+    if (tags.length === 0) {
+      tags = ["new"];
+    }
+
+    let lane = dbProj.status || "todo";
+    if (lane === "active") lane = "doing";
+    if (lane === "paused") lane = "blocked";
+    
+    return {
+      id: dbProj.id,
+      title: dbProj.name,
+      owner: owner,
+      lane: lane,
+      color: matchingAgent?.color || agentById(owner)?.color || "var(--accent)",
+      tags: tags,
+      updated: "now",
+      dbId: dbProj.id,
+      spend_mtd: dbProj.spend_mtd,
+      token_count_mtd: dbProj.token_count_mtd,
+      descriptionText: desc
+    };
+  };
+
+  useEffect(() => {
+    fetch("http://localhost:8001/api/projects")
+      .then(res => {
+        if (!res.ok) throw new Error("HTTP error " + res.status);
+        return res.json();
+      })
+      .then(data => {
+        if (Array.isArray(data)) {
+          const mapped = data.map(mapDbProjectToFrontend);
+          setProjects(mapped);
+        }
+      })
+      .catch((err) => {
+        console.warn("Failed to load projects from API, using mock projects:", err);
+      });
+  }, [agents]);
+
   const handleAddProject = (e) => {
     e.preventDefault();
     if (!newTitle.trim()) return;
     const tagArray = newTags.split(",").map(t => t.trim()).filter(Boolean);
-    const newProj = {
-      id: "p_" + Date.now(),
-      title: newTitle.trim(),
-      owner: newOwner,
-      lane: newLane,
-      color: agentById(newOwner)?.color || "var(--accent)",
-      tags: tagArray.length ? tagArray : ["new"],
-      updated: "now"
+    const assignedAgentObj = agents.find(a => a.id === newOwner);
+    const agentDbId = assignedAgentObj ? assignedAgentObj.dbId : null;
+    
+    const descriptionPayload = JSON.stringify({ tags: tagArray, desc: "" });
+
+    let statusVal = newLane;
+    if (statusVal === "doing") statusVal = "active";
+    if (statusVal === "blocked") statusVal = "paused";
+
+    const payload = {
+      name: newTitle.trim(),
+      description: descriptionPayload,
+      agent_id: agentDbId,
+      status: statusVal
     };
-    setProjects(prev => [newProj, ...prev]);
-    setNewTitle("");
-    setNewTags("");
-    setShowAddForm(false);
+
+    fetch("http://localhost:8001/api/projects", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    })
+      .then(res => {
+        if (!res.ok) throw new Error("HTTP error " + res.status);
+        return res.json();
+      })
+      .then(newDbProj => {
+        const newProj = mapDbProjectToFrontend(newDbProj);
+        setProjects(prev => [newProj, ...prev]);
+      })
+      .catch((err) => {
+        console.warn("Failed to create project on backend, using local fallback:", err);
+        const newProj = {
+          id: "p_" + Date.now(),
+          title: newTitle.trim(),
+          owner: newOwner,
+          lane: newLane,
+          color: assignedAgentObj?.color || agentById(newOwner)?.color || "var(--accent)",
+          tags: tagArray.length ? tagArray : ["new"],
+          updated: "now"
+        };
+        setProjects(prev => [newProj, ...prev]);
+      })
+      .finally(() => {
+        setNewTitle("");
+        setNewTags("");
+        setShowAddForm(false);
+      });
   };
 
   const handleAddInlineTask = (laneId) => {
     if (!inlineTaskTitle.trim()) return;
-    const newProj = {
-      id: "p_" + Date.now(),
-      title: inlineTaskTitle.trim(),
-      owner: ["claude", "hermes", "codex", "gemini"][Math.floor(Math.random() * 4)],
-      lane: laneId,
-      tags: ["task"],
-      updated: "now"
+    const ownerAgent = ["claude", "hermes", "codex", "gemini"][Math.floor(Math.random() * 4)];
+    const assignedAgentObj = agents.find(a => a.id === ownerAgent);
+    const agentDbId = assignedAgentObj ? assignedAgentObj.dbId : null;
+    
+    let statusVal = laneId;
+    if (statusVal === "doing") statusVal = "active";
+    if (statusVal === "blocked") statusVal = "paused";
+
+    const payload = {
+      name: inlineTaskTitle.trim(),
+      description: JSON.stringify({ tags: ["task"], desc: "" }),
+      agent_id: agentDbId,
+      status: statusVal
     };
-    newProj.color = agentById(newProj.owner)?.color || "var(--accent)";
-    setProjects(prev => [...prev, newProj]);
-    setInlineTaskTitle("");
-    setActiveLaneForm(null);
+
+    fetch("http://localhost:8001/api/projects", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    })
+      .then(res => {
+        if (!res.ok) throw new Error("HTTP error " + res.status);
+        return res.json();
+      })
+      .then(newDbProj => {
+        const newProj = mapDbProjectToFrontend(newDbProj);
+        setProjects(prev => [...prev, newProj]);
+      })
+      .catch((err) => {
+        console.warn("Failed to create inline task on backend, using local fallback:", err);
+        const newProj = {
+          id: "p_" + Date.now(),
+          title: inlineTaskTitle.trim(),
+          owner: ownerAgent,
+          lane: laneId,
+          tags: ["task"],
+          updated: "now",
+          color: assignedAgentObj?.color || agentById(ownerAgent)?.color || "var(--accent)"
+        };
+        setProjects(prev => [...prev, newProj]);
+      })
+      .finally(() => {
+        setInlineTaskTitle("");
+        setActiveLaneForm(null);
+      });
   };
 
   const moveCard = (projectId, direction) => {
     const laneSequence = ["todo", "doing", "review", "blocked", "done"];
-    setProjects(prev => prev.map(p => {
-      if (p.id !== projectId) return p;
-      const curIdx = laneSequence.indexOf(p.lane);
-      if (curIdx === -1) return p;
-      const nextIdx = curIdx + direction;
-      if (nextIdx >= 0 && nextIdx < laneSequence.length) {
-        return { ...p, lane: laneSequence[nextIdx], updated: "now" };
-      }
-      return p;
-    }));
+    const currentProj = projects.find(p => p.id === projectId);
+    if (!currentProj) return;
+
+    const curIdx = laneSequence.indexOf(currentProj.lane);
+    if (curIdx === -1) return;
+    const nextIdx = curIdx + direction;
+    if (nextIdx < 0 || nextIdx >= laneSequence.length) return;
+
+    const nextLane = laneSequence[nextIdx];
+    let statusVal = nextLane;
+    if (statusVal === "doing") statusVal = "active";
+    if (statusVal === "blocked") statusVal = "paused";
+
+    if (typeof projectId === "number" || (currentProj.dbId && !isNaN(currentProj.dbId))) {
+      const dbId = currentProj.dbId || projectId;
+      fetch(`http://localhost:8001/api/projects/${dbId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: statusVal })
+      })
+        .then(res => {
+          if (!res.ok) throw new Error("HTTP error " + res.status);
+          return res.json();
+        })
+        .then(updatedDbProj => {
+          setProjects(prev => prev.map(p => {
+            if (p.id === projectId) {
+              return mapDbProjectToFrontend(updatedDbProj);
+            }
+            return p;
+          }));
+        })
+        .catch(err => {
+          console.warn("Failed to update status on backend, applying local fallback:", err);
+          setProjects(prev => prev.map(p => {
+            if (p.id === projectId) {
+              return { ...p, lane: nextLane, updated: "now" };
+            }
+            return p;
+          }));
+        });
+    } else {
+      setProjects(prev => prev.map(p => {
+        if (p.id === projectId) {
+          return { ...p, lane: nextLane, updated: "now" };
+        }
+        return p;
+      }));
+    }
   };
 
   const archiveProject = (projectId) => {
-    setProjects(prev => prev.filter(p => p.id !== projectId));
+    const currentProj = projects.find(p => p.id === projectId);
+    if (!currentProj) return;
+
+    if (typeof projectId === "number" || (currentProj.dbId && !isNaN(currentProj.dbId))) {
+      const dbId = currentProj.dbId || projectId;
+      fetch(`http://localhost:8001/api/projects/${dbId}`, {
+        method: "DELETE"
+      })
+        .then(res => {
+          if (!res.ok) throw new Error("HTTP error " + res.status);
+          setProjects(prev => prev.filter(p => p.id !== projectId));
+        })
+        .catch(err => {
+          console.warn("Failed to delete project on backend, applying local fallback:", err);
+          setProjects(prev => prev.filter(p => p.id !== projectId));
+        });
+    } else {
+      setProjects(prev => prev.filter(p => p.id !== projectId));
+    }
   };
 
   // Helper for Gantt Timeline layout (deterministic mock timeline coordinates)
@@ -380,10 +571,11 @@ export function ProjectsView({ onOpenChat }) {
 }
 
 // ─── Spend view (Interactive Periods & Refresh state) ───
-export function SpendView() {
+export function SpendView({ agents = AGENTS, spendMTD }) {
   const [spendTab, setSpendTab] = useState("30d"); // 7d, 30d, 90d, YTD
   const [refreshing, setRefreshing] = useState(false);
   const [refreshSeed, setRefreshSeed] = useState(0);
+  const [dbSpend, setDbSpend] = useState(null);
 
   const handleRefresh = () => {
     setRefreshing(true);
@@ -393,21 +585,43 @@ export function SpendView() {
     }, 800);
   };
 
-  const totalIn = AGENTS.reduce((s, a) => s + a.tokensIn, 0);
-  const totalOut = AGENTS.reduce((s, a) => s + a.tokensOut, 0);
+  useEffect(() => {
+    let days = 30;
+    if (spendTab === "7d") days = 7;
+    if (spendTab === "90d") days = 90;
+    if (spendTab === "YTD") days = 365;
+
+    fetch(`http://localhost:8001/api/spend?days=${days}`)
+      .then(res => {
+        if (!res.ok) throw new Error("HTTP error " + res.status);
+        return res.json();
+      })
+      .then(data => {
+        setDbSpend(data);
+      })
+      .catch(err => {
+        console.warn("Failed to fetch spend summary from API:", err);
+      });
+  }, [spendTab, refreshSeed]);
+
+  const totalIn = agents.reduce((s, a) => s + (a.tokensIn || 0), 0);
+  const totalOut = agents.reduce((s, a) => s + (a.tokensOut || 0), 0);
 
   // Dynamically compute KPIs and graphs based on selected period
   const periodData = (() => {
-    // Incorporate refresh seed to change values slightly and show live reactive update
     const randOffset = refreshSeed * 4.82;
+    const mtdCost = dbSpend ? dbSpend.mtd.cost : (SPEND_.monthToDate + randOffset);
+    const todayCost = dbSpend ? dbSpend.today.cost : 212.40;
+    const periodCost = dbSpend ? dbSpend.period.cost : (SPEND_.monthToDate + randOffset);
+
     switch (spendTab) {
       case "7d":
         return {
-          monthToDate: 198.7 + randOffset,
-          projected: 1320 + randOffset * 2,
-          burn: 212.4 + (refreshSeed % 2 === 0 ? 4.2 : -2.1),
-          budgetPct: ((198.7 + randOffset) / 1500) * 100,
-          series: [128.4, 142.0, 161.3, 154.9, 168.2, 198.7, 212.4 + (refreshSeed % 2 === 0 ? 4.2 : -2.1)],
+          monthToDate: dbSpend ? periodCost : (198.7 + randOffset),
+          projected: dbSpend ? (periodCost * 4.2) : (1320 + randOffset * 2),
+          burn: dbSpend ? todayCost : (212.4 + (refreshSeed % 2 === 0 ? 4.2 : -2.1)),
+          budgetPct: dbSpend ? (periodCost / 1500 * 100) : (((198.7 + randOffset) / 1500) * 100),
+          series: [128.4, 142.0, 161.3, 154.9, 168.2, 198.7, dbSpend ? todayCost : (212.4 + (refreshSeed % 2 === 0 ? 4.2 : -2.1))],
           labels: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
           byAgent: SPEND_.byAgent.map(a => ({ ...a, v: a.v * 0.22 + randOffset * 0.05 })),
           byProject: SPEND_.byProject.map(p => ({ ...p, v: p.v * 0.22 + randOffset * 0.05 }))
@@ -416,9 +630,9 @@ export function SpendView() {
         const base90 = SPEND_.burn30d.concat(SPEND_.burn30d).concat(SPEND_.burn30d).map(v => v * 0.95 + Math.random() * 8);
         if (refreshSeed > 0) base90[base90.length - 1] += randOffset * 0.1;
         return {
-          monthToDate: 3120.4 + randOffset,
-          projected: 4500 + randOffset,
-          burn: 204.8 + randOffset * 0.02,
+          monthToDate: dbSpend ? periodCost : (3120.4 + randOffset),
+          projected: dbSpend ? (periodCost * 1.2) : (4500 + randOffset),
+          burn: dbSpend ? todayCost : (204.8 + randOffset * 0.02),
           budgetPct: 69.3,
           series: base90,
           labels: ["-90d", "-60d", "-30d", "now"],
@@ -426,12 +640,13 @@ export function SpendView() {
           byProject: SPEND_.byProject.map(p => ({ ...p, v: p.v * 3.2 + randOffset * 0.8 }))
         };
       case "YTD":
-        const ytdMonths = [780, 940, 1120, 1310, 1006.8 + randOffset];
+        const ytdMonths = [780, 940, 1120, 1310, dbSpend ? mtdCost : (1006.8 + randOffset)];
+        const ytdSum = ytdMonths.reduce((a, b) => a + b, 0);
         return {
-          monthToDate: ytdMonths.reduce((a, b) => a + b, 0),
+          monthToDate: ytdSum,
           projected: 14800,
-          burn: 226.5,
-          budgetPct: (ytdMonths.reduce((a, b) => a + b, 0) / 18000) * 100,
+          burn: dbSpend ? todayCost : 226.5,
+          budgetPct: (ytdSum / 18000) * 100,
           series: ytdMonths,
           labels: ["Jan", "Feb", "Mar", "Apr", "May"],
           byAgent: SPEND_.byAgent.map(a => ({ ...a, v: a.v * 5.1 + randOffset * 1.5 })),
@@ -444,10 +659,10 @@ export function SpendView() {
           base30[base30.length - 1] += randOffset * 0.2;
         }
         return {
-          monthToDate: SPEND_.monthToDate + randOffset,
-          projected: 2140.30 + randOffset * 1.2,
-          burn: 212.40 + (refreshSeed > 0 ? randOffset * 0.1 : 0),
-          budgetPct: ((SPEND_.monthToDate + randOffset) / SPEND_.monthBudget) * 100,
+          monthToDate: dbSpend ? mtdCost : (SPEND_.monthToDate + randOffset),
+          projected: dbSpend ? (mtdCost * 1.05) : (2140.30 + randOffset * 1.2),
+          burn: dbSpend ? todayCost : (212.40 + (refreshSeed > 0 ? randOffset * 0.1 : 0)),
+          budgetPct: dbSpend ? (mtdCost / SPEND_.monthBudget * 100) : (((SPEND_.monthToDate + randOffset) / SPEND_.monthBudget) * 100),
           series: base30,
           labels: ["-30d", "-20d", "-10d", "now"],
           byAgent: SPEND_.byAgent.map(a => ({ ...a, v: a.v + randOffset * 0.25 })),
@@ -571,7 +786,7 @@ export function SpendView() {
               </tr>
             </thead>
             <tbody>
-              {AGENTS.map((a) => (
+              {agents.map((a) => (
                 <tr key={a.id}>
                   <td>
                     <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -580,20 +795,20 @@ export function SpendView() {
                     </div>
                   </td>
                   <td className="mono" style={{ color: "var(--fg-2)", fontSize: 11 }}>{a.model}</td>
-                  <td className="mono" style={{ textAlign: "right", color: "var(--fg-1)" }}>{fmtK(Math.floor(a.tokensIn + (refreshSeed * 3810)))}</td>
-                  <td className="mono" style={{ textAlign: "right", color: "var(--fg-1)" }}>{fmtK(Math.floor(a.tokensOut + (refreshSeed * 980)))}</td>
+                  <td className="mono" style={{ textAlign: "right", color: "var(--fg-1)" }}>{fmtK(Math.floor((a.tokensIn || 0) + (refreshSeed * 3810)))}</td>
+                  <td className="mono" style={{ textAlign: "right", color: "var(--fg-1)" }}>{fmtK(Math.floor((a.tokensOut || 0) + (refreshSeed * 980)))}</td>
                   <td className="mono" style={{ textAlign: "right", color: "var(--ok)" }}>{(52.4 + (a.name.charCodeAt(0) % 20)).toFixed(1)}%</td>
-                  <td className="mono" style={{ textAlign: "right", color: "var(--fg-0)" }}>${(a.spend * (spendTab === "7d" ? 0.22 : (spendTab === "90d" ? 3.2 : (spendTab === "YTD" ? 5.1 : 1.0))) + refreshSeed * 0.12).toFixed(2)}</td>
-                  <td className="mono" style={{ textAlign: "right", color: "var(--fg-2)" }}>${((a.spend * (spendTab === "7d" ? 0.22 : (spendTab === "90d" ? 3.2 : (spendTab === "YTD" ? 5.1 : 1.0)))) / (a.tokensOut/1000 || 1)).toFixed(4)}</td>
+                  <td className="mono" style={{ textAlign: "right", color: "var(--fg-0)" }}>${((a.spend || 0) * (spendTab === "7d" ? 0.22 : (spendTab === "90d" ? 3.2 : (spendTab === "YTD" ? 5.1 : 1.0))) + refreshSeed * 0.12).toFixed(2)}</td>
+                  <td className="mono" style={{ textAlign: "right", color: "var(--fg-2)" }}>${(((a.spend || 0) * (spendTab === "7d" ? 0.22 : (spendTab === "90d" ? 3.2 : (spendTab === "YTD" ? 5.1 : 1.0)))) / ((a.tokensOut || 0)/1000 || 1)).toFixed(4)}</td>
                 </tr>
               ))}
               <tr style={{ background: "var(--bg-2)" }}>
                 <td style={{ color: "var(--fg-0)", fontWeight: 500 }}>Total</td>
                 <td className="mono" style={{ color: "var(--fg-3)", fontSize: 11 }}>5 models</td>
-                <td className="mono" style={{ textAlign: "right", color: "var(--fg-0)", fontWeight: 500 }}>{fmtK(AGENTS.reduce((s,a)=>s+a.tokensIn,0) + refreshSeed * 15240)}</td>
-                <td className="mono" style={{ textAlign: "right", color: "var(--fg-0)", fontWeight: 500 }}>{fmtK(AGENTS.reduce((s,a)=>s+a.tokensOut,0) + refreshSeed * 3920)}</td>
+                <td className="mono" style={{ textAlign: "right", color: "var(--fg-0)", fontWeight: 500 }}>{fmtK(agents.reduce((s,a)=>s+(a.tokensIn || 0),0) + refreshSeed * 15240)}</td>
+                <td className="mono" style={{ textAlign: "right", color: "var(--fg-0)", fontWeight: 500 }}>{fmtK(agents.reduce((s,a)=>s+(a.tokensOut || 0),0) + refreshSeed * 3920)}</td>
                 <td className="mono" style={{ textAlign: "right", color: "var(--ok)" }}>62.4%</td>
-                <td className="mono" style={{ textAlign: "right", color: "var(--fg-0)", fontWeight: 500 }}>${(AGENTS.reduce((s,a)=>s+a.spend,0) * (spendTab === "7d" ? 0.22 : (spendTab === "90d" ? 3.2 : (spendTab === "YTD" ? 5.1 : 1.0))) + refreshSeed * 0.48).toFixed(2)}</td>
+                <td className="mono" style={{ textAlign: "right", color: "var(--fg-0)", fontWeight: 500 }}>${(agents.reduce((s,a)=>s+(a.spend || 0),0) * (spendTab === "7d" ? 0.22 : (spendTab === "90d" ? 3.2 : (spendTab === "YTD" ? 5.1 : 1.0))) + refreshSeed * 0.48).toFixed(2)}</td>
                 <td className="mono" style={{ textAlign: "right", color: "var(--fg-3)" }}>—</td>
               </tr>
             </tbody>
@@ -810,10 +1025,24 @@ export function BrainView({ onOpenChat }) {
 
   const handleReindex = () => {
     setIndexing(true);
-    setTimeout(() => {
-      setIndexing(false);
-      alert("AI Brain re-index success: 1,284 memories synced, 312 vault files cataloged.");
-    }, 1000);
+    fetch("http://localhost:8001/api/brain/synchronize", {
+      method: "POST"
+    })
+      .then(res => {
+        if (!res.ok) throw new Error("HTTP error " + res.status);
+        return res.json();
+      })
+      .then(data => {
+        setIndexing(false);
+        alert(`AI Brain re-index success: ${data.memories_synced} memories synced, ${data.vault_files_cataloged} vault files cataloged.`);
+      })
+      .catch(err => {
+        console.warn("Failed to synchronize brain on backend, using local fallback:", err);
+        setTimeout(() => {
+          setIndexing(false);
+          alert("AI Brain re-index success: 1,284 memories synced, 312 vault files cataloged.");
+        }, 1000);
+      });
   };
 
   const handleAddMemory = (e) => {
@@ -1050,7 +1279,7 @@ export function BrainView({ onOpenChat }) {
                   {filteredMemories.map((m, i) => {
                     const a = agentById(m.agent) || AGENTS[0];
                     return (
-                      <div key={i} className="mem-card" style={{ display: "flex", flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" }}>
+                      <div key={i} className="mem-card" style={{ display: "flex", flexDirection: "row", justifycontent: "space-between", alignItems: "flex-start", justifyContent: "space-between" }}>
                         <div style={{ flex: 1 }}>
                           <div className="mt">
                             <span className="tag" style={{

@@ -1,13 +1,13 @@
 <claude-mem-context>
 # Memory Context
 
-# [agentOS] recent context, 2026-05-26 5:07pm CDT
+# [agentOS] recent context, 2026-05-26 5:10pm CDT
 
 Legend: 🎯session 🔴bugfix 🟣feature 🔄refactor ✅change 🔵discovery ⚖️decision 🚨security_alert 🔐security_note
 Format: ID TIME TYPE TITLE
 Fetch details: get_observations([IDs]) | Search: mem-search skill
 
-Stats: 28 obs (9,907t read) | 324,887t work | 97% savings
+Stats: 35 obs (11,636t read) | 371,767t work | 97% savings
 
 ### May 26, 2026
 299 4:53p 🔵 AgentOS Codebase Structure and Current State
@@ -43,28 +43,13 @@ S57 Commit Phase 2 & 3 implementation: WebSocket layer, monitor service, runner 
 S58 Push Phase 2 & 3 implementation to remote repository on GitHub (May 26, 5:01 PM)
 333 5:02p ✅ Phase 2 & 3 Implementation Pushed to Origin
 S59 Implement REST API backend (Phase 3) for agentOS with comprehensive endpoint coverage and test validation. Successfully completed full backend implementation with 12/12 tests passing. (May 26, 5:06 PM)
-**Investigated**: Codebase structure, database models, existing schemas, test infrastructure and fixture configuration, async/await patterns in FastAPI, aiosqlite behavior in sandboxed environments, password hashing standards, JWT authentication implementation, fixture performance bottlenecks, and parallel frontend development progress.
+334 5:10p 🔵 Agent lifecycle management with status tracking
+335 " 🔵 JWT bearer token authentication with email-based user registration
+336 " 🔵 Activity logging with Codex/Claude backend integration pattern
+337 " 🔵 Metrics ingest pattern mirrors activity ingestion for monitor events
+338 " 🔵 Brain router is placeholder awaiting Codex implementation
+339 " 🔵 API structure includes WebSocket endpoints for real-time updates
+340 " 🔵 Comprehensive REST API test coverage validates all backend patterns
 
-**Learned**: aiosqlite async SQLite connections hang when executed inside sandboxed runtime environment due to network/I/O restrictions. Function-scoped pytest-asyncio fixtures provide better test isolation and 600x performance improvement (90+ seconds → 150ms) compared to session-scoped fixtures. PBKDF2-SHA256 with 210,000 iterations is industry standard for password hashing. Async SQLAlchemy patterns work reliably with proper dependency injection and AsyncSession context management. Tests execute cleanly outside sandbox with proper permissions escalation.
-
-**Completed**: Complete REST API backend implementation (9 files, 150+ lines of production code):
-  • api/app/routers/auth.py - JWT authentication with register/login/refresh/me endpoints
-  • api/app/routers/agents.py - Agent CRUD and lifecycle management (create/start/stop/restart)
-  • api/app/routers/projects.py - Project management with partial updates
-  • api/app/routers/activity.py - Activity stream with pagination
-  • api/app/routers/tokens.py - Token usage tracking and aggregation
-  • api/app/routers/metrics.py - System metrics collection and dashboard summary
-  • api/app/schemas/user.py - Authentication schemas (UserLogin, TokenResponse)
-  • api/app/utils/crypto.py - PBKDF2-SHA256 password hashing with verify functions
-  
-  Test Suite: api/tests/test_api_routes.py with 6 comprehensive integration tests covering all major workflows. Full pytest suite: 12 tests passing in 150ms (100% success rate). 
-  
-  Performance Optimization: Modified api/tests/conftest.py engine fixture from session-scope to function-scope (1 line change achieving 600x speedup).
-  
-  Additional artifacts: Frontend scaffolding (40+ React files by Agy), AGENTS.md documentation, git history clean and organized.
-
-**Next Steps**: Frontend integration phase (Agy) - connecting React SPA components to REST API endpoints. Production deployment setup (Hermes) - Docker Compose configuration, PostgreSQL migration, VPS deployment. E2E testing of full user workflows. Performance monitoring and optimization for production environment.
-
-
-Access 325k tokens of past work via get_observations([IDs]) or mem-search skill.
+Access 372k tokens of past work via get_observations([IDs]) or mem-search skill.
 </claude-mem-context>

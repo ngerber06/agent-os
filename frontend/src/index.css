@@ -623,6 +623,10 @@ svg[viewBox="0 0 24 24"] { width: 14px; height: 14px; flex-shrink: 0; }
   min-width: 0;
   background: var(--bg-0);
   position: relative;
+  transition: padding-right 0.28s cubic-bezier(.4,.7,.3,1);
+}
+.app[data-chat-pos="right"][data-chat-open="1"] .main {
+  padding-right: 420px;
 }
 
 /* ─── Top bar ─── */
@@ -957,6 +961,7 @@ svg[viewBox="0 0 24 24"] { width: 14px; height: 14px; flex-shrink: 0; }
   transform: translateY(calc(100% + 30px)) scale(0.96);
   opacity: 0;
   pointer-events: none;
+  transition: transform 0.28s cubic-bezier(.4,.7,.3,1), opacity 0.25s ease, scale 0.28s cubic-bezier(.4,.7,.3,1);
 }
 .chat-drawer[data-pos="floating"][data-open="1"] {
   transform: translateY(0) scale(1);
@@ -1815,4 +1820,65 @@ svg[viewBox="0 0 24 24"] { width: 14px; height: 14px; flex-shrink: 0; }
 .note-editor-body textarea:focus {
   border-color: var(--accent);
   outline: none;
+}
+
+/* ─── Chat Floating Action Buttons (FABs) ─── */
+.chat-fab-floating {
+  position: absolute;
+  bottom: 24px;
+  right: 24px;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--accent-fg);
+  border: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+  cursor: default;
+  z-index: 49;
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), background-color 0.2s, filter 0.2s;
+  animation: fabPopIn 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.chat-fab-floating:hover {
+  transform: scale(1.08) rotate(5deg);
+  filter: brightness(1.08);
+}
+.chat-fab-floating:active {
+  transform: scale(0.95);
+}
+.chat-fab-floating svg {
+  width: 22px;
+  height: 22px;
+}
+
+.chat-fab-bottom {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 44px;
+  padding: 0 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--bg-1);
+  border: 0;
+  border-top: 1px solid var(--line-strong);
+  color: var(--fg-2);
+  cursor: default;
+  font-size: 13px;
+  z-index: 49;
+  transition: background-color 0.2s, color 0.2s;
+}
+.chat-fab-bottom:hover {
+  background: var(--bg-2);
+  color: var(--fg-0);
+}
+
+@keyframes fabPopIn {
+  0% { transform: scale(0) rotate(-45deg); opacity: 0; }
+  100% { transform: scale(1) rotate(0); opacity: 1; }
 }

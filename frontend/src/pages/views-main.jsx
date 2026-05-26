@@ -37,8 +37,8 @@ export function StatusPill({ s }) {
 }
 
 // ─── Activity row ───
-export function ActivityRow({ a, onOpen }) {
-  const agent = agentById(a.agent);
+export function ActivityRow({ a, onOpen, agents }) {
+  const agent = (agents || AGENTS).find(x => x.id === a.agent) || AGENTS[0];
   return (
     <div className="act" onClick={() => onOpen && onOpen(agent.id)}>
       <i className="dot" data-tone={a.tone} />
@@ -54,7 +54,7 @@ export function ActivityRow({ a, onOpen }) {
 }
 
 // ─── Hero widget variants ───
-export function HeroActivity({ onOpenChat }) {
+export function HeroActivity({ onOpenChat, activities, agents }) {
   return (
     <div className="card" style={{ display: "flex", flexDirection: "column" }}>
       <CardHeader
@@ -68,37 +68,39 @@ export function HeroActivity({ onOpenChat }) {
         }
       />
       <div style={{ flex: 1, overflowY: "auto", maxHeight: 360 }}>
-        {ACTIVITY.map((a, i) => <ActivityRow key={i} a={a} onOpen={onOpenChat} />)}
+        {(activities || ACTIVITY).map((a, i) => (
+          <ActivityRow key={i} a={a} onOpen={onOpenChat} agents={agents} />
+        ))}
       </div>
     </div>
   );
 }
 
-export function HeroVPS() {
-  const cpu = VPS.cpu.usage;
-  const ramPct = (VPS.ram.used / VPS.ram.total) * 100;
-  const diskPct = (VPS.disk.used / VPS.disk.total) * 100;
+export function HeroVPS({ vpsStats, cpuSeries, ramSeries, netInSeries, netOutSeries }) {
+  const cpu = vpsStats.cpu.usage;
+  const ramPct = (vpsStats.ram.used / vpsStats.ram.total) * 100;
+  const diskPct = (vpsStats.disk.used / vpsStats.disk.total) * 100;
   return (
     <div className="card">
-      <CardHeader t={VPS.name}
+      <CardHeader t={vpsStats.name}
         pill={<span className="pill" data-tone="ok"><i className="dot" />ONLINE</span>}
-        sub={<span>{VPS.provider} · {VPS.plan} · {VPS.location}</span>} />
+        sub={<span>{vpsStats.provider} · {vpsStats.plan} · {vpsStats.location}</span>} />
       <div className="card-b">
         <div className="grid g-4" style={{ gap: 12 }}>
-          <Gauge value={cpu} label="CPU" sub={`${VPS.cpu.cores}c · ${VPS.cpu.model.split(" ").pop()}`} tone={cpu > 80 ? "bad" : cpu > 60 ? "warn" : "ok"} />
-          <Gauge value={ramPct} label="RAM" sub={`${VPS.ram.used.toFixed(1)} / ${VPS.ram.total} GB`} tone={ramPct > 85 ? "bad" : "accent"} />
-          <Gauge value={diskPct} label="Disk" sub={`${VPS.disk.used.toFixed(1)} / ${VPS.disk.total} GB`} tone="accent" />
+          <Gauge value={cpu} label="CPU" sub={`${vpsStats.cpu.cores}c · ${vpsStats.cpu.model.split(" ").pop()}`} tone={cpu > 80 ? "bad" : cpu > 60 ? "warn" : "ok"} />
+          <Gauge value={ramPct} label="RAM" sub={`${vpsStats.ram.used.toFixed(1)} / ${vpsStats.ram.total} GB`} tone={ramPct > 85 ? "bad" : "accent"} />
+          <Gauge value={diskPct} label="Disk" sub={`${vpsStats.disk.used.toFixed(1)} / ${vpsStats.disk.total} GB`} tone="accent" />
           <div style={{ display: "flex", flexDirection: "column", gap: 10, paddingTop: 6 }}>
             <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11 }}>
               <span style={{ color: "var(--fg-3)" }}>NET IN</span>
-              <span className="mono">{VPS.net.in.toFixed(1)} Mbps</span>
+              <span className="mono">{vpsStats.net.in.toFixed(1)} Mbps</span>
             </div>
-            <Sparkline data={NET_IN_SERIES} color="var(--info)" height={28} max={100} />
+            <Sparkline data={netInSeries} color="var(--info)" height={28} max={100} />
             <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11 }}>
               <span style={{ color: "var(--fg-3)" }}>NET OUT</span>
-              <span className="mono">{VPS.net.out.toFixed(1)} Mbps</span>
+              <span className="mono">{vpsStats.net.out.toFixed(1)} Mbps</span>
             </div>
-            <Sparkline data={NET_OUT_SERIES} color="var(--accent)" height={28} max={100} />
+            <Sparkline data={netOutSeries} color="var(--accent)" height={28} max={100} />
           </div>
         </div>
       </div>
@@ -106,7 +108,7 @@ export function HeroVPS() {
   );
 }
 
-export function HeroSpend() {
+export function HeroSpend({ agents }) {
   return (
     <div className="card">
       <CardHeader t="Spend — month to date"
@@ -131,14 +133,14 @@ export function HeroSpend() {
             </div>
           </div>
         </div>
-        <BarH items={SPEND.byAgent.sort((a, b) => b.v - a.v)} formatV={fmt$} />
+        <BarH items={(agents || AGENTS).map(a => ({ id: a.id, name: a.name, color: a.color, v: a.spend })).sort((a, b) => b.v - a.v)} formatV={fmt$} />
       </div>
     </div>
   );
 }
 
 // ─── Right rail widgets ───
-export function SystemHealth() {
+export function SystemHealth({ cpuUsage, loadAverage, ramUsed, ramTotal, diskUsed, diskTotal, uptime, connections, cpuHistory, ramHistory }) {
   return (
     <div className="card">
       <CardHeader t="System" pill={<Clock />} />
@@ -146,29 +148,29 @@ export function SystemHealth() {
         <div>
           <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, marginBottom: 4 }}>
             <span style={{ color: "var(--fg-3)" }}><Icon.cpu style={{ width: 11, height: 11, verticalAlign: -1 }} /> CPU</span>
-            <span className="mono">{VPS.cpu.usage}% · load {VPS.cpu.load.join(", ")}</span>
+            <span className="mono">{cpuUsage}% · load {loadAverage.join(", ")}</span>
           </div>
-          <Sparkline data={CPU_SERIES} color="var(--accent)" height={26} max={100} />
+          <Sparkline data={cpuHistory} color="var(--accent)" height={26} max={100} />
         </div>
         <div>
           <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, marginBottom: 4 }}>
             <span style={{ color: "var(--fg-3)" }}><Icon.ram style={{ width: 11, height: 11, verticalAlign: -1 }} /> RAM</span>
-            <span className="mono">{VPS.ram.used.toFixed(1)}/{VPS.ram.total}G</span>
+            <span className="mono">{ramUsed.toFixed(1)}/{ramTotal}G</span>
           </div>
-          <Sparkline data={RAM_SERIES} color="var(--info)" height={26} max={100} />
+          <Sparkline data={ramHistory} color="var(--info)" height={26} max={100} />
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, paddingTop: 4 }}>
           <div>
             <div style={{ fontSize: 10, color: "var(--fg-3)", textTransform: "uppercase", letterSpacing: ".06em" }}>Uptime</div>
-            <div className="mono" style={{ fontSize: 12 }}>{VPS.uptime}</div>
+            <div className="mono" style={{ fontSize: 12 }}>{uptime}</div>
           </div>
           <div>
             <div style={{ fontSize: 10, color: "var(--fg-3)", textTransform: "uppercase", letterSpacing: ".06em" }}>Conns</div>
-            <div className="mono" style={{ fontSize: 12 }}>{VPS.net.conns}</div>
+            <div className="mono" style={{ fontSize: 12 }}>{connections}</div>
           </div>
           <div>
             <div style={{ fontSize: 10, color: "var(--fg-3)", textTransform: "uppercase", letterSpacing: ".06em" }}>Disk</div>
-            <div className="mono" style={{ fontSize: 12 }}>{VPS.disk.used.toFixed(1)}/{VPS.disk.total}G</div>
+            <div className="mono" style={{ fontSize: 12 }}>{diskUsed.toFixed(1)}/{diskTotal}G</div>
           </div>
           <div>
             <div style={{ fontSize: 10, color: "var(--fg-3)", textTransform: "uppercase", letterSpacing: ".06em" }}>Region</div>
@@ -180,8 +182,8 @@ export function SystemHealth() {
   );
 }
 
-export function TokensThisHour() {
-  const total = AGENTS.reduce((s, a) => s + a.tokensIn + a.tokensOut, 0);
+export function TokensThisHour({ agents }) {
+  const total = (agents || AGENTS).reduce((s, a) => s + a.tokensIn + a.tokensOut, 0);
   return (
     <div className="card">
       <CardHeader t="Tokens · last 24h" sub="rolling" />
@@ -208,12 +210,13 @@ export function TokensThisHour() {
   );
 }
 
-export function AgentRoster({ onOpenChat }) {
+export function AgentRoster({ onOpenChat, agents }) {
+  const currentAgents = agents || AGENTS;
   return (
     <div className="card">
-      <CardHeader t="Agents" sub={`${AGENTS.filter(a => a.status === "active").length}/${AGENTS.length} active`} />
+      <CardHeader t="Agents" sub={`${currentAgents.filter(a => a.status === "active").length}/${currentAgents.length} active`} />
       <div style={{ display: "flex", flexDirection: "column" }}>
-        {AGENTS.map((a) => (
+        {currentAgents.map((a) => (
           <div key={a.id} onClick={() => onOpenChat(a.id)}
                style={{
                  display: "grid",
@@ -241,22 +244,59 @@ export function AgentRoster({ onOpenChat }) {
 }
 
 // ─── Activity (home) view ───
-export function ActivityView({ hero, onOpenChat }) {
-  const HeroComp = { activity: HeroActivity, vps: HeroVPS, spend: HeroSpend }[hero] || HeroActivity;
+export function ActivityView({ hero, onOpenChat, activities, agents }) {
+  // VPS states local wire up for home widget
+  const [vpsStats, setVpsStats] = React.useState(VPS);
+  const [cpuHistory, setCpuHistory] = React.useState(CPU_SERIES);
+  const [ramHistory, setRamHistory] = React.useState(RAM_SERIES);
+  const [netInSeries, setNetInSeries] = React.useState(NET_IN_SERIES);
+  const [netOutSeries, setNetOutSeries] = React.useState(NET_OUT_SERIES);
+
+  React.useEffect(() => {
+    const ws = new WebSocket("ws://localhost:8001/ws/metrics");
+    ws.onmessage = (event) => {
+      try {
+        const msg = JSON.parse(event.data);
+        setVpsStats(prev => ({
+          ...prev,
+          cpu: { usage: msg.cpu_pct, cores: prev.cpu.cores, model: prev.cpu.model, load: [msg.cpu_pct/50, msg.cpu_pct/60, msg.cpu_pct/70] },
+          ram: { used: msg.ram_used_gb, total: msg.ram_total_gb },
+          disk: { used: msg.disk_used_gb, total: msg.disk_total_gb },
+          net: { in: msg.net_in || prev.net.in, out: msg.net_out || prev.net.out, conns: msg.connections },
+          uptime: `${Math.floor(msg.uptime_seconds / 86400)}d ${Math.floor((msg.uptime_seconds % 86400) / 3600)}h`
+        }));
+        setCpuHistory(prev => [...prev.slice(1), msg.cpu_pct]);
+        setRamHistory(prev => [...prev.slice(1), (msg.ram_used_gb / msg.ram_total_gb) * 100]);
+        if (msg.net_in) setNetInSeries(prev => [...prev.slice(1), msg.net_in]);
+        if (msg.net_out) setNetOutSeries(prev => [...prev.slice(1), msg.net_out]);
+      } catch (err) {
+        console.error("WS Metrics parsing error on home activity:", err);
+      }
+    };
+    return () => ws.close();
+  }, []);
+
+  const HeroComp = {
+    activity: () => <HeroActivity onOpenChat={onOpenChat} activities={activities} agents={agents} />,
+    vps:      () => <HeroVPS vpsStats={vpsStats} cpuSeries={cpuHistory} ramSeries={ramHistory} netInSeries={netInSeries} netOutSeries={netOutSeries} />,
+    spend:    () => <HeroSpend agents={agents} />
+  }[hero] || (() => <HeroActivity onOpenChat={onOpenChat} activities={activities} agents={agents} />);
+
+  const currentAgents = agents || AGENTS;
   return (
     <>
       <div className="grid g-4">
         <div className="card">
           <div className="stat">
             <div className="l">Active agents</div>
-            <div className="v">{AGENTS.filter(a => a.status === "active").length}<small>/ {AGENTS.length}</small></div>
-            <div className="delta">5 idle · 1 error</div>
+            <div className="v">{currentAgents.filter(a => a.status === "active").length}<small>/ {currentAgents.length}</small></div>
+            <div className="delta">{currentAgents.filter(a => a.status === "idle").length} idle · {currentAgents.filter(a => a.status === "error").length} error</div>
           </div>
         </div>
         <div className="card">
           <div className="stat">
             <div className="l">Tokens · today</div>
-            <div className="v"><LiveNumber value={2_412_088} interval={900} vary={300} format={fmtK} /></div>
+            <div className="v"><LiveNumber value={2412088} interval={900} vary={300} format={fmtK} /></div>
             <div className="delta" data-sign="+">+12.4%</div>
           </div>
         </div>
@@ -270,43 +310,90 @@ export function ActivityView({ hero, onOpenChat }) {
         <div className="card">
           <div className="stat">
             <div className="l">VPS load · 1m</div>
-            <div className="v">{VPS.cpu.load[0].toFixed(2)}</div>
-            <div className="delta">{VPS.cpu.cores}c · {VPS.ram.total}G · {VPS.disk.total}G</div>
+            <div className="v">{vpsStats.cpu.load[0].toFixed(2)}</div>
+            <div className="delta">{vpsStats.cpu.cores}c · {vpsStats.ram.total}G · {vpsStats.disk.total}G</div>
           </div>
         </div>
       </div>
 
       <div className="grid row-2">
-        <HeroComp onOpenChat={onOpenChat} />
+        <HeroComp />
         <div style={{ display: "flex", flexDirection: "column", gap: "var(--gap)" }}>
-          <SystemHealth />
-          <TokensThisHour />
+          <SystemHealth
+            cpuUsage={vpsStats.cpu.usage}
+            loadAverage={vpsStats.cpu.load}
+            ramUsed={vpsStats.ram.used}
+            ramTotal={vpsStats.ram.total}
+            diskUsed={vpsStats.disk.used}
+            diskTotal={vpsStats.disk.total}
+            uptime={vpsStats.uptime}
+            connections={vpsStats.net.conns}
+            cpuHistory={cpuHistory}
+            ramHistory={ramHistory}
+          />
+          <TokensThisHour agents={agents} />
         </div>
       </div>
 
-      <AgentRoster onOpenChat={onOpenChat} />
+      <AgentRoster onOpenChat={onOpenChat} agents={agents} />
     </>
   );
 }
 
-// ─── Agents view ───
-export function AgentsView({ onOpenChat }) {
+// ─── Agents view (API-backed Lifecycles) ───
+export function AgentsView({ onOpenChat, agents, setAgents }) {
+  const toggleAgentStatus = (agent) => {
+    const action = agent.status === "active" ? "stop" : "start";
+    if (agent.dbId) {
+      fetch(`http://localhost:8001/api/agents/${agent.dbId}/${action}`, {
+        method: "POST"
+      })
+        .then(res => res.json())
+        .then(updatedDbAgent => {
+          setAgents(prev => prev.map(localAgent => {
+            if (localAgent.id === agent.id) {
+              return { ...localAgent, status: updatedDbAgent.status };
+            }
+            return localAgent;
+          }));
+        })
+        .catch(() => {
+          // Local fallback toggle
+          setAgents(prev => prev.map(localAgent => {
+            if (localAgent.id === agent.id) {
+              return { ...localAgent, status: agent.status === "active" ? "idle" : "active" };
+            }
+            return localAgent;
+          }));
+        });
+    } else {
+      // Local fallback toggle
+      setAgents(prev => prev.map(localAgent => {
+        if (localAgent.id === agent.id) {
+          return { ...localAgent, status: agent.status === "active" ? "idle" : "active" };
+        }
+        return localAgent;
+      }));
+    }
+  };
+
+  const currentAgents = agents || AGENTS;
   return (
     <>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
         <div>
           <div style={{ fontSize: 18, color: "var(--fg-0)", fontWeight: 500, letterSpacing: "-0.01em" }}>Agents</div>
-          <div style={{ fontSize: 12, color: "var(--fg-3)" }}>{AGENTS.length} agents · {AGENTS.filter(a=>a.status==="active").length} running on agent-os-prod-01</div>
+          <div style={{ fontSize: 12, color: "var(--fg-3)" }}>{currentAgents.length} agents · {currentAgents.filter(a=>a.status==="active").length} running on agent-os-prod-01</div>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
-          <button className="btn"><Icon.refresh />Sync state</button>
+          <button className="btn" onClick={() => alert("Syncing agent runtimes...")}><Icon.refresh />Sync state</button>
           <button className="btn" data-variant="primary"><Icon.plus />New agent</button>
         </div>
       </div>
       <div className="grid g-3">
-        {AGENTS.map((a) => (
-          <div className="agent-card" key={a.id} onClick={() => onOpenChat(a.id)}>
-            <div className="ah">
+        {currentAgents.map((a) => (
+          <div className="agent-card" key={a.id}>
+            <div className="ah" style={{ cursor: "pointer" }} onClick={() => onOpenChat(a.id)}>
               <div className="av" style={{ background: a.color }}>{a.name[0]}</div>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div className="n">{a.name}</div>
@@ -321,9 +408,12 @@ export function AgentsView({ onOpenChat }) {
               <div><span className="l">Uptime</span><span className="v">{a.uptime}</span></div>
             </div>
             <div style={{ display: "flex", gap: 6, marginTop: 2 }}>
-              <button className="btn" data-variant="primary" style={{ flex: 1 }}><Icon.chat />Open chat</button>
-              <button className="btn"><Icon.terminal /></button>
-              <button className="btn"><Icon.cog /></button>
+              <button className="btn" data-variant="primary" style={{ flex: 1 }} onClick={() => onOpenChat(a.id)}><Icon.chat />Open chat</button>
+              <button className="btn" style={{ flex: 1 }} onClick={() => toggleAgentStatus(a)}>
+                <Icon.refresh style={a.status === "active" ? { color: "var(--bad)" } : { color: "var(--ok)" }} />
+                {a.status === "active" ? "Stop" : "Start"}
+              </button>
+              <button className="btn" onClick={() => alert(`Managing config for ${a.name}`)}><Icon.cog /></button>
             </div>
           </div>
         ))}
@@ -332,7 +422,7 @@ export function AgentsView({ onOpenChat }) {
   );
 }
 
-// ─── VPS view ───
+// ─── VPS view (WebSocket-backed Telemetry) ───
 export function VPSView() {
   const [rebooting, setRebooting] = React.useState(false);
   const [sshOpen, setSshOpen] = React.useState(false);
@@ -346,6 +436,41 @@ export function VPSView() {
     "felix@agent-os-prod-01:~$ "
   ]);
   const [sshCommand, setSshCommand] = React.useState("");
+
+  // Live WebSocket Metrics States
+  const [vpsStats, setVpsStats] = React.useState(VPS);
+  const [cpuSeries, setCpuSeries] = React.useState(CPU_SERIES);
+  const [ramSeries, setRamSeries] = React.useState(RAM_SERIES);
+  const [netInSeries, setNetInSeries] = React.useState(NET_IN_SERIES);
+  const [netOutSeries, setNetOutSeries] = React.useState(NET_OUT_SERIES);
+
+  React.useEffect(() => {
+    if (rebooting) return;
+    const ws = new WebSocket("ws://localhost:8001/ws/metrics");
+    ws.onmessage = (event) => {
+      try {
+        const msg = JSON.parse(event.data);
+        setVpsStats(prev => ({
+          ...prev,
+          cpu: { usage: msg.cpu_pct, cores: prev.cpu.cores, model: prev.cpu.model, load: [msg.cpu_pct/50, msg.cpu_pct/60, msg.cpu_pct/70] },
+          ram: { used: msg.ram_used_gb, total: msg.ram_total_gb },
+          disk: { used: msg.disk_used_gb, total: msg.disk_total_gb },
+          net: { in: msg.net_in || prev.net.in, out: msg.net_out || prev.net.out, conns: msg.connections },
+          uptime: `${Math.floor(msg.uptime_seconds / 86400)}d ${Math.floor((msg.uptime_seconds % 86400) / 3600)}h`
+        }));
+        setCpuSeries(prev => [...prev.slice(1), msg.cpu_pct]);
+        setRamSeries(prev => [...prev.slice(1), (msg.ram_used_gb / msg.ram_total_gb) * 100]);
+        if (msg.net_in) setNetInSeries(prev => [...prev.slice(1), msg.net_in]);
+        if (msg.net_out) setNetOutSeries(prev => [...prev.slice(1), msg.net_out]);
+      } catch (err) {
+        console.error("WS Metrics parsing error in VPSView:", err);
+      }
+    };
+    ws.onerror = () => {
+      console.warn("WebSocket Metrics offline, using mock telemetry.");
+    };
+    return () => ws.close();
+  }, [rebooting]);
 
   const handleReboot = () => {
     setRebooting(true);
@@ -376,17 +501,17 @@ export function VPSView() {
     setSshCommand("");
   };
 
-  const cpu = rebooting ? 0 : VPS.cpu.usage;
-  const ramPct = rebooting ? 0 : (VPS.ram.used / VPS.ram.total) * 100;
-  const diskPct = (VPS.disk.used / VPS.disk.total) * 100;
-  const swapPct = rebooting ? 0 : (VPS.swap.used / VPS.swap.total) * 100;
+  const cpu = rebooting ? 0 : vpsStats.cpu.usage;
+  const ramPct = rebooting ? 0 : (vpsStats.ram.used / vpsStats.ram.total) * 100;
+  const diskPct = (vpsStats.disk.used / vpsStats.disk.total) * 100;
+  const swapPct = rebooting ? 0 : (vpsStats.swap.used / vpsStats.swap.total) * 100;
 
   return (
     <>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <div>
           <div style={{ fontSize: 18, color: "var(--fg-0)", fontWeight: 500, letterSpacing: "-0.01em" }}>
-            {VPS.name}
+            {vpsStats.name}
             {rebooting ? (
               <span className="pill" data-tone="warn" style={{ marginLeft: 10, verticalAlign: 3 }}><span className="live-dot" style={{ background: "var(--warn)" }} />REBOOTING</span>
             ) : (
@@ -394,7 +519,7 @@ export function VPSView() {
             )}
           </div>
           <div style={{ fontSize: 12, color: "var(--fg-3)" }}>
-            {VPS.provider} · {VPS.plan} · {VPS.location} · uptime <span className="mono" style={{ color: "var(--fg-1)" }}>{rebooting ? "0s" : VPS.uptime}</span>
+            {vpsStats.provider} · {vpsStats.plan} · {vpsStats.location} · uptime <span className="mono" style={{ color: "var(--fg-1)" }}>{rebooting ? "0s" : vpsStats.uptime}</span>
           </div>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
@@ -431,23 +556,23 @@ export function VPSView() {
       <div className="grid g-4" style={rebooting ? { opacity: 0.3, transition: "opacity 0.3s" } : undefined}>
         <div className="card stat">
           <div className="l">vCPU</div>
-          <div className="v">{VPS.cpu.cores}<small>cores</small></div>
-          <div className="delta">{VPS.cpu.model}</div>
+          <div className="v">{vpsStats.cpu.cores}<small>cores</small></div>
+          <div className="delta">{vpsStats.cpu.model}</div>
         </div>
         <div className="card stat">
           <div className="l">RAM</div>
-          <div className="v">{rebooting ? 0 : VPS.ram.total}<small>GB</small></div>
-          <div className="delta">{rebooting ? 0 : VPS.ram.used.toFixed(1)}GB used · {rebooting ? 0 : ramPct.toFixed(1)}%</div>
+          <div className="v">{rebooting ? 0 : vpsStats.ram.total}<small>GB</small></div>
+          <div className="delta">{rebooting ? 0 : vpsStats.ram.used.toFixed(1)}GB used · {rebooting ? 0 : ramPct.toFixed(1)}%</div>
         </div>
         <div className="card stat">
           <div className="l">Disk</div>
-          <div className="v">{VPS.disk.total}<small>GB NVMe</small></div>
-          <div className="delta">{VPS.disk.used.toFixed(1)}GB used · {diskPct.toFixed(1)}%</div>
+          <div className="v">{vpsStats.disk.total}<small>GB NVMe</small></div>
+          <div className="delta">{vpsStats.disk.used.toFixed(1)}GB used · {diskPct.toFixed(1)}%</div>
         </div>
         <div className="card stat">
           <div className="l">Bandwidth</div>
           <div className="v">∞<small>this month</small></div>
-          <div className="delta">{rebooting ? 0 : (VPS.net.in + VPS.net.out).toFixed(1)} Mbps now</div>
+          <div className="delta">{rebooting ? 0 : (vpsStats.net.in + vpsStats.net.out).toFixed(1)} Mbps now</div>
         </div>
       </div>
 
@@ -455,12 +580,12 @@ export function VPSView() {
       <div className="grid g-2" style={rebooting ? { opacity: 0.3, transition: "opacity 0.3s" } : undefined}>
         <div className="card">
           <CardHeader t="CPU usage" sub="last 30 min · 30s tick"
-            pill={<span className="pill" data-tone={cpu > 80 ? "bad" : cpu > 60 ? "warn" : "ok"}><i className="dot"/>{cpu}%</span>} />
+            pill={<span className="pill" data-tone={cpu > 80 ? "bad" : cpu > 60 ? "warn" : "ok"}><i className="dot"/>{cpu.toFixed(0)}%</span>} />
           <div className="card-b">
-            <LineChart series={rebooting ? [0, 0, 0, 0] : CPU_SERIES} color="var(--accent)" max={100}
+            <LineChart series={rebooting ? [0, 0, 0, 0] : cpuSeries} color="var(--accent)" max={100}
               labels={["30m","20m","10m","now"]} yFmt={(v) => `${Math.round(v)}%`} />
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, paddingTop: 10, borderTop: "1px solid var(--line)", marginTop: 10 }}>
-              {VPS.cpu.load.map((l, i) => (
+              {vpsStats.cpu.load.map((l, i) => (
                 <div key={i}>
                   <div style={{ fontSize: 10, color: "var(--fg-3)", textTransform: "uppercase", letterSpacing: ".06em" }}>Load {["1m","5m","15m"][i]}</div>
                   <div className="mono" style={{ fontSize: 14, color: "var(--fg-1)" }}>{rebooting ? "0.00" : l.toFixed(2)}</div>
@@ -473,17 +598,17 @@ export function VPSView() {
           <CardHeader t="Memory" sub="resident + swap"
             pill={<span className="pill" data-tone={ramPct > 85 ? "bad" : "info"}><i className="dot"/>{ramPct.toFixed(0)}%</span>} />
           <div className="card-b">
-            <LineChart series={rebooting ? [0, 0, 0, 0] : RAM_SERIES} color="var(--info)" max={100}
+            <LineChart series={rebooting ? [0, 0, 0, 0] : ramSeries} color="var(--info)" max={100}
               labels={["30m","20m","10m","now"]} yFmt={(v) => `${Math.round(v)}%`} />
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, paddingTop: 10, borderTop: "1px solid var(--line)", marginTop: 10 }}>
               <div>
                 <div style={{ fontSize: 10, color: "var(--fg-3)", textTransform: "uppercase", letterSpacing: ".06em" }}>Resident</div>
-                <div className="mono" style={{ fontSize: 14, color: "var(--fg-1)" }}>{rebooting ? "0.00" : VPS.ram.used.toFixed(2)} GB</div>
+                <div className="mono" style={{ fontSize: 14, color: "var(--fg-1)" }}>{rebooting ? "0.00" : vpsStats.ram.used.toFixed(2)} GB</div>
                 <div className="bar" data-tone={ramPct > 85 ? "bad" : ""} style={{ marginTop: 5 }}><i style={{ width: `${ramPct}%` }} /></div>
               </div>
               <div>
                 <div style={{ fontSize: 10, color: "var(--fg-3)", textTransform: "uppercase", letterSpacing: ".06em" }}>Swap</div>
-                <div className="mono" style={{ fontSize: 14, color: "var(--fg-1)" }}>{rebooting ? "0.00" : VPS.swap.used.toFixed(2)} / {VPS.swap.total} GB</div>
+                <div className="mono" style={{ fontSize: 14, color: "var(--fg-1)" }}>{rebooting ? "0.00" : vpsStats.swap.used.toFixed(2)} / {vpsStats.swap.total} GB</div>
                 <div className="bar" style={{ marginTop: 5 }}><i style={{ width: `${swapPct}%` }} /></div>
               </div>
             </div>
@@ -499,19 +624,19 @@ export function VPSView() {
             <div style={{ marginBottom: 8 }}>
               <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, marginBottom: 4 }}>
                 <span style={{ color: "var(--info)" }}>● IN</span>
-                <span className="mono">{rebooting ? "0.0" : VPS.net.in.toFixed(1)} Mbps</span>
+                <span className="mono">{rebooting ? "0.0" : vpsStats.net.in.toFixed(1)} Mbps</span>
               </div>
-              <Sparkline data={rebooting ? [0, 0, 0] : NET_IN_SERIES} color="var(--info)" height={38} max={120} />
+              <Sparkline data={rebooting ? [0, 0, 0] : netInSeries} color="var(--info)" height={38} max={120} />
             </div>
             <div>
               <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, marginBottom: 4 }}>
                 <span style={{ color: "var(--accent)" }}>● OUT</span>
-                <span className="mono">{rebooting ? "0.0" : VPS.net.out.toFixed(1)} Mbps</span>
+                <span className="mono">{rebooting ? "0.0" : vpsStats.net.out.toFixed(1)} Mbps</span>
               </div>
-              <Sparkline data={rebooting ? [0, 0, 0] : NET_OUT_SERIES} color="var(--accent)" height={38} max={120} />
+              <Sparkline data={rebooting ? [0, 0, 0] : netOutSeries} color="var(--accent)" height={38} max={120} />
             </div>
             <div style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid var(--line)", fontSize: 11, color: "var(--fg-3)" }}>
-              Active TCP <span className="mono" style={{ color: "var(--fg-1)" }}>{rebooting ? "0" : VPS.net.conns}</span> · UDP <span className="mono" style={{ color: "var(--fg-1)" }}>{rebooting ? "0" : "14"}</span>
+              Active TCP <span className="mono" style={{ color: "var(--fg-1)" }}>{rebooting ? "0" : vpsStats.net.conns}</span> · UDP <span className="mono" style={{ color: "var(--fg-1)" }}>{rebooting ? "0" : "14"}</span>
             </div>
           </div>
         </div>
@@ -542,11 +667,11 @@ export function VPSView() {
         <div className="card">
           <CardHeader t="Identity" />
           <div className="card-b" style={{ display: "flex", flexDirection: "column", gap: 7, fontSize: "var(--font-sm)" }}>
-            <Kv k="OS" v={VPS.os} />
-            <Kv k="Kernel" v={VPS.kernel} />
-            <Kv k="IPv4" v={VPS.ip4} mono />
-            <Kv k="IPv6" v={VPS.ip6} mono />
-            <Kv k="Region" v={VPS.location} />
+            <Kv k="OS" v={vpsStats.os} />
+            <Kv k="Kernel" v={vpsStats.kernel} />
+            <Kv k="IPv4" v={vpsStats.ip4} mono />
+            <Kv k="IPv6" v={vpsStats.ip6} mono />
+            <Kv k="Region" v={vpsStats.location} />
             <Kv k="Datacenter" v="EU-DE-1 · de-fra-1" mono />
             <Kv k="Reverse DNS" v="agent-os.cloud.internal" mono />
           </div>

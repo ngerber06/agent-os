@@ -186,3 +186,15 @@ async def test_agent_start_broadcasts_status_change(client):
     stop_resp = await client.post(f"/api/agents/{agent_id}/stop")
     assert stop_resp.status_code == 200
     assert stop_resp.json()["status"] == "idle"
+
+
+@pytest.mark.asyncio
+async def test_brain_synchronize(client):
+    resp = await client.post("/api/brain/synchronize")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["status"] == "success"
+    assert body["memories_synced"] == 1284
+    assert body["vault_files_cataloged"] == 312
+    assert "timestamp" in body
+

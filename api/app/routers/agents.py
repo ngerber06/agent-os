@@ -8,8 +8,19 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.models.agent import Agent
 from app.schemas.agent import AgentCreate, AgentOut, AgentUpdate
+from app.services.activity_stream import activity_stream
 
 router = APIRouter()
+
+
+async def _broadcast_status(agent: Agent, action: str) -> None:
+    await activity_stream.broadcast({
+        "agent_id": agent.id,
+        "event_type": "status_change",
+        "description": f"{agent.name} {action}",
+        "tokens_used": 0,
+        "status_code": agent.status,
+    })
 
 
 async def _get_agent_or_404(agent_id: int, db: AsyncSession) -> Agent:
@@ -66,6 +77,7 @@ async def start_agent(agent_id: int, db: AsyncSession = Depends(get_db)):
     agent.last_active_at = datetime.now(timezone.utc)
     await db.commit()
     await db.refresh(agent)
+    await _broadcast_status(agent, "started")
     return agent
 
 
@@ -75,6 +87,7 @@ async def stop_agent(agent_id: int, db: AsyncSession = Depends(get_db)):
     agent.status = "idle"
     await db.commit()
     await db.refresh(agent)
+    await _broadcast_status(agent, "stopped")
     return agent
 
 
@@ -85,4 +98,5 @@ async def restart_agent(agent_id: int, db: AsyncSession = Depends(get_db)):
     agent.last_active_at = datetime.now(timezone.utc)
     await db.commit()
     await db.refresh(agent)
+    await _broadcast_status(agent, "restarted")
     return agent

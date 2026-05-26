@@ -11,7 +11,7 @@ from app.utils.crypto import create_access_token, decode_token, hash_password, v
 router = APIRouter()
 
 
-async def _current_user(
+async def get_current_user(
     authorization: str | None = Header(default=None),
     db: AsyncSession = Depends(get_db),
 ) -> User:
@@ -56,12 +56,12 @@ async def login(payload: UserLogin, db: AsyncSession = Depends(get_db)):
 
 
 @router.post("/refresh", response_model=TokenResponse)
-async def refresh_token(user: User = Depends(_current_user)):
+async def refresh_token(user: User = Depends(get_current_user)):
     return TokenResponse(access_token=create_access_token(str(user.id)))
 
 
 @router.get("/me", response_model=UserOut)
-async def me(user: User = Depends(_current_user)):
+async def me(user: User = Depends(get_current_user)):
     return user
 
 

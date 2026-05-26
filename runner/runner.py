@@ -1,5 +1,6 @@
 """Agent process orchestrator — polls API for active agents and manages their lifecycle."""
 import asyncio
+import json
 import logging
 import os
 from typing import Dict
@@ -35,12 +36,23 @@ async def post_activity(client: httpx.AsyncClient, agent_id: int, event_type: st
         log.warning("Failed to post activity for agent %d: %s", agent_id, exc)
 
 
+async def patch_agent_status(client: httpx.AsyncClient, agent_id: int, status: str) -> None:
+    """Update the agent's status in the API so the DB reflects the real process state."""
+    try:
+        await client.patch(
+            f"{API_URL}/api/agents/{agent_id}",
+            json={"status": status},
+            timeout=5.0,
+        )
+    except Exception as exc:
+        log.warning("Failed to patch status for agent %d: %s", agent_id, exc)
+
+
 async def run_agent(agent: dict, client: httpx.AsyncClient) -> None:
     agent_id = agent["id"]
     agent_type = agent.get("agent_type", "hermes").lower()
     config = {}
     try:
-        import json
         if agent.get("config_json"):
             config = json.loads(agent["config_json"])
     except Exception:
@@ -55,9 +67,15 @@ async def run_agent(agent: dict, client: httpx.AsyncClient) -> None:
         async for line in adapter.output_lines():
             await post_activity(client, agent_id, "output", line)
         await post_activity(client, agent_id, "finished", f"Agent {agent['name']} exited cleanly")
+        await patch_agent_status(client, agent_id, "idle")
+    except asyncio.CancelledError:
+        await post_activity(client, agent_id, "stopped", f"Agent {agent['name']} stopped by runner")
+        await patch_agent_status(client, agent_id, "idle")
+        raise
     except Exception as exc:
         log.error("Agent %d error: %s", agent_id, exc)
         await post_activity(client, agent_id, "error", str(exc))
+        await patch_agent_status(client, agent_id, "error")
     finally:
         await adapter.stop()
 
@@ -85,7 +103,7 @@ async def main() -> None:
                         task = asyncio.create_task(run_agent(agent, client))
                         running[agent["id"]] = task
 
-            # Clean up tasks for agents that are no longer active
+            # Cancel tasks for agents that are no longer marked active
             for agent_id in list(running.keys()):
                 if agent_id not in active_ids:
                     task = running.pop(agent_id)

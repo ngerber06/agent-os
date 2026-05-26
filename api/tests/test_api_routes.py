@@ -1,4 +1,4 @@
-"""REST API route coverage for Codex-owned endpoints."""
+"""REST API route coverage for all endpoints."""
 
 import pytest
 
@@ -136,3 +136,53 @@ async def test_auth_register_login_me_and_refresh(client):
     refresh_resp = await client.post("/auth/refresh", headers={"Authorization": f"Bearer {token}"})
     assert refresh_resp.status_code == 200
     assert refresh_resp.json()["access_token"]
+
+
+@pytest.mark.asyncio
+async def test_metrics_tokens_timeseries(client):
+    await client.post(
+        "/api/tokens",
+        json={"input_tokens": 5, "output_tokens": 10, "model": "claude-sonnet-4-6", "cost": 0.05},
+    )
+    resp = await client.get("/api/metrics/tokens")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["total"] >= 1
+    assert isinstance(body["items"], list)
+
+
+@pytest.mark.asyncio
+async def test_metrics_spend_breakdown(client):
+    resp = await client.get("/api/metrics/spend?days=30")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert "agents" in body
+    assert "total_cost" in body
+    assert body["days"] == 30
+
+
+@pytest.mark.asyncio
+async def test_spend_summary(client):
+    resp = await client.get("/api/spend")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert "today" in body
+    assert "mtd" in body
+    assert "period" in body
+
+
+@pytest.mark.asyncio
+async def test_agent_start_broadcasts_status_change(client):
+    create_resp = await client.post(
+        "/api/agents",
+        json={"name": "BroadcastTest", "initials": "BT", "model": "test", "agent_type": "hermes"},
+    )
+    assert create_resp.status_code == 201
+    agent_id = create_resp.json()["id"]
+
+    start_resp = await client.post(f"/api/agents/{agent_id}/start")
+    assert start_resp.status_code == 200
+
+    stop_resp = await client.post(f"/api/agents/{agent_id}/stop")
+    assert stop_resp.status_code == 200
+    assert stop_resp.json()["status"] == "idle"

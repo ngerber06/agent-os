@@ -84,7 +84,7 @@ async def test_ingest_metric_stores_and_responds(test_client: AsyncClient):
 
 @pytest.mark.asyncio
 async def test_ingest_activity_broadcasts_to_subscribers():
-    """Ingest should push to activity_stream subscribers."""
+    """Ingest should push to activity_stream subscribers, wrapped in {type, data} envelope."""
     received = []
     q = activity_stream._subscribe_global()
     try:
@@ -95,7 +95,8 @@ async def test_ingest_activity_broadcasts_to_subscribers():
         activity_stream._unsubscribe_global(q)
 
     assert len(received) == 1
-    assert received[0]["event_type"] == "test_broadcast"
+    assert received[0]["type"] == "event"
+    assert received[0]["data"]["event_type"] == "test_broadcast"
 
 
 @pytest.mark.asyncio

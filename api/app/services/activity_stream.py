@@ -30,8 +30,12 @@ class ActivityStreamManager:
             self._agent[agent_id].discard(q)
 
     async def broadcast(self, event: dict) -> None:
-        """Broadcast an event to all global and relevant agent subscribers."""
-        payload = json.dumps(event)
+        """Broadcast an event to all global and relevant agent subscribers.
+
+        Always wraps in {"type": "event", "data": {...}} so the frontend
+        can distinguish live events from the initial seed message.
+        """
+        payload = json.dumps({"type": "event", "data": event})
         dead_global: Set[asyncio.Queue] = set()
         for q in list(self._global):
             try:
